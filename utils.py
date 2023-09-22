@@ -1,7 +1,7 @@
 import pandas as pd
 
 INPUT_PATH = 'datasets/hcV3-stories.csv'
-OUTPUT_PATH = 'datasets/filtered_data.csv'
+OUTPUT_PATH = 'datasets/hcV3-imagined-stories.csv'
 
 def process_and_save_csv(input_path, output_path):
 
