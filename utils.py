@@ -1,4 +1,5 @@
 import openai 
+import os 
 import pandas as pd
 from jinja2 import Template
 from config import OPENAI_API_KEY
@@ -72,7 +73,7 @@ def generate_story(summary, time_since_event):
   return response['choices'][0]['message']['content']
 
 def generate_stories_for_row(row):
-    
+
     # Retrieve details from the row
     assignment_id = row['AssignmentId']
     summary = row['summary']
@@ -90,11 +91,21 @@ def generate_all_stories(data):
     num_cpus = cpu_count()
     print(f"Using {num_cpus} CPU cores for processing.")
     
-    # Initialize a progress bar
+    # Check if temp file exists and load it if it does
+    temp_file_path = 'datasets/temp_generated_stories.csv'
+    if os.path.exists(temp_file_path):
+        temp_df = pd.read_csv(temp_file_path)
+        completed_assignment_ids = set(temp_df['AssignmentId'])
+        # Filter the data to only include rows not already processed
+        data = data[~data['AssignmentId'].isin(completed_assignment_ids)]
+        results = temp_df.values.tolist()
+    else:
+        results = []
+
+    # Update progress bar total based on remaining data
     pbar = tqdm(total=len(data), desc="Progress")
     
     # Save periodically after processing each row
-    results = []
     with Pool(num_cpus) as pool:
         for assignment_id, generated_story in pool.imap_unordered(generate_stories_for_row, [row for _, row in data.iterrows()]):
             results.append((assignment_id, generated_story))
@@ -102,10 +113,10 @@ def generate_all_stories(data):
             # Update the progress bar
             pbar.update(1)
             
-            # Save results to CSV every 10 rows processed (you can adjust this number as needed)
-            if len(results) % 250 == 0:
+            # Save results to CSV every 250 rows processed
+            if len(results) % 20 == 0:
                 temp_df = pd.DataFrame(results, columns=['AssignmentId', 'generated_story'])
-                temp_df.to_csv('datasets/temp_generated_stories.csv', index=False)
+                temp_df.to_csv(temp_file_path, index=False)
     
     # Close the progress bar
     pbar.close()
@@ -116,7 +127,7 @@ def generate_all_stories(data):
 if __name__ == "__main__":
   
     # Load imagined stories
-    imagined_stories = pd.read_csv("datasets/hcV3-imagined-stories-small.csv")
+    imagined_stories = pd.read_csv("datasets/hcV3-imagined-stories.csv")
 
     # Generate stories for all rows in the dataframe
     stories_df = generate_all_stories(imagined_stories)
