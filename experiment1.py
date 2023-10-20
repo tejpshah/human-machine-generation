@@ -69,6 +69,13 @@ def plot_features(data):
     ai_means = ai_features_df.mean()
     percentage_diff = ((ai_means / human_means) - 1) * 100
     
+    statistics = pd.DataFrame({
+        'human_means': human_means,
+        'ai_means': ai_means,
+        'percentage_diff': percentage_diff
+    })
+    statistics.to_csv('datasets/experiment1/experiment1_statistics.csv')
+
     # Sort the percentage_diff in descending order
     percentage_diff_sorted = percentage_diff.sort_values(ascending=False)
 
