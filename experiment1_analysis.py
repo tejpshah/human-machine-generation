@@ -1,12 +1,12 @@
-import argparse
-import spacy
 import ast 
+import spacy
+import argparse
 import pandas as pd
+import matplotlib.pyplot as plt
 from collections import Counter
+from scipy.stats import ttest_ind
 from textstat import flesch_reading_ease
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import matplotlib.pyplot as plt
-from scipy.stats import ttest_ind
 
 # Initialize global resources
 NLP = spacy.load("en_core_web_sm")
