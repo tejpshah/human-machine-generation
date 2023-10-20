@@ -99,7 +99,7 @@ def plot_logistic_feature_importance(model):
     df = df.sort_values(by='coeff', ascending=False)
 
     # Plotting
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(15,10))
     plt.barh(df['feature'], df['coeff'], color='green')
     plt.xlabel('Coefficient Magnitude')
     plt.ylabel('Feature')
