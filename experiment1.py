@@ -8,7 +8,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
 
-
 # Initialize global resources
 NLP = spacy.load("en_core_web_sm")
 ANALYZER = SentimentIntensityAnalyzer()
@@ -69,18 +68,20 @@ def plot_features(data):
     human_means = human_features_df.mean()
     ai_means = ai_features_df.mean()
     percentage_diff = ((ai_means / human_means) - 1) * 100
+    
+    # Sort the percentage_diff in descending order
+    percentage_diff_sorted = percentage_diff.sort_values(ascending=False)
 
     _, ax = plt.subplots(figsize=(14, 8))
     plt.rcParams["font.family"] = "Times New Roman"
-    ax.bar(percentage_diff.index, percentage_diff, color='green')
+    ax.bar(percentage_diff_sorted.index, percentage_diff_sorted, color='green')
     ax.set_ylabel('Percentage Difference (%)')
     ax.set_title('Percentage Difference of AI-generated Features Relative to Human-generated Features')
-    ax.set_xticklabels(percentage_diff.index, rotation=45, ha="right")
+    ax.set_xticklabels(percentage_diff_sorted.index, rotation=45, ha="right")
     ax.axhline(y=0, color='red', linestyle='-')
     plt.tight_layout()
     plt.savefig(args.output_plot)
     plt.show()
-
 
 def test_significance(human_features_df, ai_features_df):
     """Check the statistical significance of differences between human and AI generated features."""
