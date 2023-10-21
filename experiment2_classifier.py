@@ -20,7 +20,6 @@ def preprocess_data(df):
         'story_embedding': all_embeddings,
         'type': all_labels
     })
-
     return df_new
 
 def split_data(df):
