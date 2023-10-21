@@ -66,6 +66,7 @@ class OpenAIEmbeddingsProcessor:
         df['closer_to_story'] = df.apply(self.compare_similarities, axis=1)
         
         return df
+    
 def generate_value_plot(df):
     plt.figure(figsize=(10, 6))
     sns.countplot(data=df, x='closer_to_story', palette=COLORS)
