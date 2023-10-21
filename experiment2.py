@@ -1,12 +1,24 @@
+# Standard libraries
+import argparse
+import pandas as pd
+
+# External libraries
 import openai 
 import tiktoken
-import argparse 
-import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Local imports
 from config import OPENAI_API_KEY
 from openai.embeddings_utils import get_embedding
-from sklearn.metrics.pairwise import cosine_similarity
+
+# Constants
+PLOT_SAVE_PATH = 'datasets/experiment2'
+VALUE_PLOT_FILENAME = 'closer_to_story.png'
+BOXPLOT_FILENAME = 'similarity_scores.png'
+LABELS_UPDATED = ['Human Generated Story', 'GPT Generated Story']
+COLORS = ["lightgreen", "darkgreen"]
 
 # Set up OpenAI API key
 openai.api_key = OPENAI_API_KEY 
@@ -54,45 +66,35 @@ class OpenAIEmbeddingsProcessor:
         df['closer_to_story'] = df.apply(self.compare_similarities, axis=1)
         
         return df
+def generate_value_plot(df):
+    plt.figure(figsize=(10, 6))
+    sns.countplot(data=df, x='closer_to_story', palette=COLORS)
+    plt.title('Count of Stories With Higher Cosine Similarity to Original Story')
+    plt.ylabel('Count')
+    plt.xlabel('')
+    plt.xticks(ticks=range(len(LABELS_UPDATED)), labels=reversed(LABELS_UPDATED))
+    plt.savefig(f"{PLOT_SAVE_PATH}/{VALUE_PLOT_FILENAME}")
+    plt.show()
+
+def generate_boxplot(df):
+    data_to_plot = [df['story_generated_story_similarity'], df['story_summary_similarity']]
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(data=data_to_plot, orient="v", palette=COLORS, width=0.6)
+    plt.xticks(ticks=range(len(LABELS_UPDATED)), labels=reversed(LABELS_UPDATED))
+    plt.ylabel('Similarity Score')
+    plt.title('Distribution of Similarity Scores')
+    plt.savefig(f"{PLOT_SAVE_PATH}/{BOXPLOT_FILENAME}")
+    plt.show()
 
 def plot(df, plot_type):
-    colors = ["lightgreen", "darkgreen"]
-    labels_updated = ['Human Generated Story', 'GPT Generated Story']
-
-    def generate_value_plot():
-        plt.figure(figsize=(10, 6))
-        sns.countplot(data=df, x='closer_to_story', palette=colors)
-        plt.title('Count of Stories With Higher Cosine Similarity to Original Story')
-        plt.ylabel('Count')
-        plt.xlabel('')
-        plt.xticks(ticks=range(len(labels_updated)), labels=reversed(labels_updated))
-        plt.savefig('datasets/experiment2/closer_to_story.png')
-        plt.show()
-
-    def generate_boxplot():
-        data_to_plot = [df['story_generated_story_similarity'], df['story_summary_similarity']]
-        plt.figure(figsize=(10, 6))
-        sns.boxplot(data=data_to_plot, orient="v", palette=colors, width=0.6)
-        plt.xticks(ticks=range(len(labels_updated)), labels=reversed(labels_updated))
-        plt.ylabel('Similarity Score')
-        plt.title('Distribution of Similarity Scores')
-        plt.savefig('datasets/experiment2/similarity_scores.png')
-        plt.show()
-
     if plot_type == 'value_plot':
-        generate_value_plot()
+        generate_value_plot(df)
     elif plot_type == 'boxplot':
-        generate_boxplot()
+        generate_boxplot(df)
     else:
         print("Invalid plot_type. Use 'value_plot' or 'boxplot'.")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process embeddings and plot data")
-    parser.add_argument("--input_path", type=str, default="datasets/hcV3-imagined-stories-with-generated.csv")
-    parser.add_argument("--output_path", type=str, default="datasets/experiment2/embeddings.csv")
-    parser.add_argument("--preprocessing", type=bool, default=False)
-    args = parser.parse_args()
-
+def main(args):
     df_processed = None
     if not args.preprocessing:
         # Load data
@@ -103,19 +105,28 @@ if __name__ == "__main__":
         df_processed = processor.process_dataframe(df)
 
         # only keep relevant columns
-        df_processed = df_processed[['story_embedding', 
-                                     'summary_embedding', 
-                                     'generated_story_embedding', 
-                                     'story_summary_similarity', 
-                                     'story_generated_story_similarity', 
-                                     'closer_to_story']]
+        relevant_cols = [
+            'story_embedding', 'summary_embedding', 'generated_story_embedding',
+            'story_summary_similarity', 'story_generated_story_similarity', 'closer_to_story'
+        ]
+        df_processed = df_processed[relevant_cols]
         print(df_processed['closer_to_story'].value_counts())
 
         # Save the updated dataframe
         df_processed.to_csv(args.output_path, index=False)
-    else: df_processed = pd.read_csv(args.output_path)
+    else:
+        df_processed = pd.read_csv(args.output_path)
         
     # Generate plots
     print(df_processed['closer_to_story'].value_counts())
     plot(df_processed, 'value_plot')
     plot(df_processed, 'boxplot')
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process embeddings and plot data")
+    parser.add_argument("--input_path", type=str, default="datasets/hcV3-imagined-stories-with-generated.csv")
+    parser.add_argument("--output_path", type=str, default="datasets/experiment2/embeddings.csv")
+    parser.add_argument("--preprocessing", type=bool, default=False)
+    args = parser.parse_args()
+    
+    main(args)
