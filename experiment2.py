@@ -65,15 +65,15 @@ def plot(df, plot_type):
         plt.title('Count of Stories With Higher Cosine Similarity to Original Story')
         plt.ylabel('Count')
         plt.xlabel('')
-        plt.xticks(ticks=range(len(labels_updated)), labels=labels_updated)
+        plt.xticks(ticks=range(len(labels_updated)), labels=reversed(labels_updated))
         plt.savefig('datasets/experiment2/closer_to_story.png')
         plt.show()
 
     def generate_boxplot():
-        data_to_plot = [df['story_summary_similarity'], df['story_generated_story_similarity']]
+        data_to_plot = [df['story_generated_story_similarity'], df['story_summary_similarity']]
         plt.figure(figsize=(10, 6))
         sns.boxplot(data=data_to_plot, orient="v", palette=colors, width=0.6)
-        plt.xticks(ticks=range(len(labels_updated)), labels=labels_updated)
+        plt.xticks(ticks=range(len(labels_updated)), labels=reversed(labels_updated))
         plt.ylabel('Similarity Score')
         plt.title('Distribution of Similarity Scores')
         plt.savefig('datasets/experiment2/similarity_scores.png')
@@ -116,5 +116,6 @@ if __name__ == "__main__":
     else: df_processed = pd.read_csv(args.output_path)
         
     # Generate plots
+    print(df_processed['closer_to_story'].value_counts())
     plot(df_processed, 'value_plot')
     plot(df_processed, 'boxplot')
