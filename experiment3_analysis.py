@@ -1,11 +1,14 @@
 import os 
 import tqdm
 import openai
+import json
 import pandas as pd
 from jinja2 import Template
 from config import OPENAI_API_KEY
 from multiprocessing import Pool
 from functools import partial
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
 import time
 
 # Set up OpenAI API key
@@ -19,11 +22,11 @@ This is the story:
 ZERO_SHOT_SYSTEM_PROMPT = """
 Your expertise lies in discerning human-authored vs. AI-generated stories. 
 
-Respond only with the answer 0 and 1 and nothing else. Think carefully.
+Half the stories shown are human-authored and half are AI-generated.
 
-Analyze the provided story and determine its origin: AI (1) or human (0). 
+Think carefully. Analyze the provided story and determine its origin: AI (1) or human (0). 
 
-0 is human, 1 is AI.
+Answer "1" if its AI generated and "0" if its human authored. Do not give any other answer.
 """
 
 COT_SYSTEM_PROMPT = """
@@ -81,7 +84,7 @@ def generate_data():
     combined_stories = combine_and_shuffle(human_stories, ai_stories, SAMPLE_FRACTION, RANDOM_SEED)
 
     # Save the first 250 rows of the data
-    save_data(combined_stories, OUTPUT_FILE, nrows=250)
+    save_data(combined_stories, OUTPUT_FILE, nrows=100)
 
 def zero_shot_prompt_result(story):
     system_prompt = Template(ZERO_SHOT_SYSTEM_PROMPT).render()
@@ -120,20 +123,126 @@ def cot_prompt_result(story):
     )
     return int(answer['choices'][0]['message']['content'])
 
-def run_experiment(data, prompt_func, output_file, result_column_name="result"):
-    with Pool(processes=os.cpu_count()) as pool:
-        results = []
-        for i, result in enumerate(tqdm.tqdm(pool.imap(prompt_func, data['story_content']), total=len(data))):
-            results.append(result)
-            if (i+1) % 50 == 0:
-                print("Sleeping for 5 seconds...")
-                time.sleep(5)
-    data[result_column_name] = results
+def self_consistency_prompt_result(story, num_samples=3):
+    """Run COT_Prompt 3 and take majority vote of the 3 results"""
+    results = [cot_prompt_result(story) for _ in range(num_samples)]
+    return max(set(results), key=results.count)
 
-    # Save the result
+def load_checkpoint(checkpoint_path):
+    """Load interim results from a checkpoint file."""
+    if os.path.exists(checkpoint_path):
+        with open(checkpoint_path, 'r') as f:
+            return json.load(f)
+    return None  # If no checkpoint exists, return None
+
+def save_checkpoint(data, file_path):
+    with open(file_path, 'w') as f:
+        # Convert the data to a list if it's a Series
+        if isinstance(data, pd.Series):
+            data = data.tolist()
+        json.dump(data, f)
+
+def run_experiment(data, prompt_func, output_file, checkpoint_path, result_column_name="result"):
+    # Load checkpoint if it exists
+    checkpoint_data = load_checkpoint(checkpoint_path)
+    start_index = 0
+
+    if checkpoint_data is not None:
+        # Update the DataFrame only for the indices that have checkpoint data
+        for i, val in enumerate(checkpoint_data):
+            data.at[i, result_column_name] = val
+        start_index = len(checkpoint_data)
+
+    results = list(data.get(result_column_name, [None] * len(data)))  # Initialize with previous results or None
+
+    # Use 'with' to ensure processes are cleaned up promptly
+    with Pool(processes=8) as pool:
+        # Wrap with list() to ensure results are retrieved before closing the pool
+        for i, result in enumerate(tqdm.tqdm(pool.imap(prompt_func, data['story_content'][start_index:]), total=len(data) - start_index), start=start_index):
+            results[i] = result
+
+            # Save a checkpoint after each result
+            if (i + 1) % 10 == 0:  # Save every 10 results; you can adjust this number
+                save_checkpoint(results[:i + 1], checkpoint_path)
+
+        # Save final checkpoint
+        save_checkpoint(results, checkpoint_path)
+
+    # Assign results back to data and save it
+    data[result_column_name] = results
     save_data(data, output_file)
 
+def generate_combined_plot(zeroshot_path, cot_path, self_consistency_path):
+    """
+    Generates a combined 2x3 plot visualizing correct and incorrect guesses for both "AI Predicted" 
+    and "Human Predicted" labels across three prompting techniques using data from provided CSV files.
+    
+    Args:
+    - zeroshot_path (str): Path to the CSV file with Zero-shot predictions.
+    - cot_path (str): Path to the CSV file with CoT predictions.
+    - self_consistency_path (str): Path to the CSV file with Self-consistency predictions.
+    """
+    labels = ['Correct', 'Incorrect']
+    techniques = ['Zero-shot', 'CoT', 'Self-consistency']
+
+    # Load the data from provided CSV paths
+    zeroshot_df = pd.read_csv(zeroshot_path)
+    cot_df = pd.read_csv(cot_path)
+    self_consistency_df = pd.read_csv(self_consistency_path)
+    
+    # Compute confusion matrices for each technique
+    zeroshot_cm = confusion_matrix(zeroshot_df['label'], zeroshot_df['zero_shot_result'])
+    cot_cm = confusion_matrix(cot_df['label'], cot_df['cot_result'])
+    self_consistency_cm = confusion_matrix(self_consistency_df['label'], self_consistency_df['self_consistency_result'])
+
+    # Extracting counts from confusion matrices for plotting
+    ai_guess_zeroshot = [zeroshot_cm[1][1], zeroshot_cm[0][1]]  # TP, FP
+    human_guess_zeroshot = [zeroshot_cm[0][0], zeroshot_cm[1][0]]  # TN, FN
+    ai_guess_cot = [cot_cm[1][1], cot_cm[0][1]]  # TP, FP
+    human_guess_cot = [cot_cm[0][0], cot_cm[1][0]]  # TN, FN
+    ai_guess_self_consistency = [self_consistency_cm[1][1], self_consistency_cm[0][1]]  # TP, FP
+    human_guess_self_consistency = [self_consistency_cm[0][0], self_consistency_cm[1][0]]  # TN, FN
+
+    # Plotting in a single 2x3 grid
+    plt.figure(figsize=(15, 8))
+
+    # AI Guesses
+    for i, (ai_guess, technique) in enumerate(zip([ai_guess_zeroshot, ai_guess_cot, ai_guess_self_consistency], techniques), 1):
+        plt.subplot(2, 3, i)
+        plt.bar(labels, ai_guess, color=['g', 'r'])
+        plt.title(f'AI Guesses ({technique})')
+        plt.ylabel('Count')
+        plt.grid(False)
+
+    # Human Guesses
+    for i, (human_guess, technique) in enumerate(zip([human_guess_zeroshot, human_guess_cot, human_guess_self_consistency], techniques), 4):
+        plt.subplot(2, 3, i)
+        plt.bar(labels, human_guess, color=['g', 'r'])
+        plt.title(f'Human Guesses ({technique})')
+        plt.ylabel('Count')
+        plt.grid(False)
+
+    plt.tight_layout()
+    plt.savefig('datasets/experiment3/combined_plot.png')
+    plt.show()
+
 if __name__ == "__main__":
-    data = load_data('datasets/experiment3/prompt_engineering.csv')
-    run_experiment(data, zero_shot_prompt_result, 'datasets/experiment3/prompt_engineering_predictions_zeroshot.csv', result_column_name="zero_shot_result")
-    run_experiment(data, cot_prompt_result, 'datasets/experiment3/prompt_engineering_predictions_cot.csv', result_column_name="cot_result")
+
+    checkpoint_path_zero_shot = 'datasets/experiment3/checkpoint_zeroshot.json'
+    checkpoint_path_cot = 'datasets/experiment3/checkpoint_cot.json'
+    checkpoint_path_consistency = 'datasets/experiment3/checkpoint_consistency.json'
+
+    # generate_data()
+    # data = load_data('datasets/experiment3/prompt_engineering.csv')
+
+    # Zero-shot prompt experiment
+    # run_experiment(data, zero_shot_prompt_result, 'datasets/experiment3/prompt_engineering_predictions_zeroshot.csv', checkpoint_path_zero_shot, result_column_name="zero_shot_result")
+
+    # COT prompt experiment
+    # run_experiment(data, cot_prompt_result, 'datasets/experiment3/prompt_engineering_predictions_cot.csv', checkpoint_path_cot, result_column_name="cot_result")
+
+    # Self-consistency prompt experiment
+    # run_experiment(data, self_consistency_prompt_result, 'datasets/experiment3/prompt_engineering_predictions_self_consistency.csv', checkpoint_path_consistency, result_column_name="self_consistency_result")
+
+    # Generate combined plot
+    generate_combined_plot('datasets/experiment3/prompt_engineering_predictions_zeroshot.csv', 'datasets/experiment3/prompt_engineering_predictions_cot.csv', 'datasets/experiment3/prompt_engineering_predictions_self_consistency.csv')
