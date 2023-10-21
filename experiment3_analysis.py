@@ -17,11 +17,11 @@ This is the story:
 """
 
 ZERO_SHOT_SYSTEM_PROMPT = """
-Your expertise lies in discerning human-authored vs. AI-generated stories.
+Your expertise lies in discerning human-authored vs. AI-generated stories. 
+
+Respond only with the answer 0 and 1 and nothing else. Think carefully.
 
 Analyze the provided story and determine its origin: AI (1) or human (0). 
-
-Respond only with the answer 0 and 1 and nothing else. 
 
 0 is human, 1 is AI.
 """
@@ -96,9 +96,38 @@ def zero_shot_prompt_result(story):
     )
     return int(response['choices'][0]['message']['content'])
 
+def cot_prompt_result(story):
+    system_prompt = Template(COT_SYSTEM_PROMPT).render()
+    user_prompt = Template(CONVERSATION_START).render(story_content=story)
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+    )
+
+    analysis = response['choices'][0]['message']['content']
+
+    output_prompt = Template(COT_OUTPUT_PARSER).render()
+    answer = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[
+            {"role": "system", "content": output_prompt},
+            {"role": "user", "content": analysis},
+        ]
+    )
+    return int(answer['choices'][0]['message']['content'])
+
 def run_experiment(data, prompt_func, output_file, result_column_name="result"):
-    with Pool(processes=4) as pool:
-        results = list(tqdm.tqdm(pool.imap(prompt_func, data['story_content']), total=len(data)))
+    with Pool(processes=os.cpu_count()) as pool:
+        results = []
+        for i, result in enumerate(tqdm.tqdm(pool.imap(prompt_func, data['story_content']), total=len(data))):
+            results.append(result)
+            if (i+1) % 50 == 0:
+                print("Sleeping for 5 seconds...")
+                time.sleep(5)
     data[result_column_name] = results
 
     # Save the result
@@ -106,4 +135,5 @@ def run_experiment(data, prompt_func, output_file, result_column_name="result"):
 
 if __name__ == "__main__":
     data = load_data('datasets/experiment3/prompt_engineering.csv')
-    run_experiment(data, zero_shot_prompt_result, 'datasets/experiment3/prompt_engineering_predictions.csv', result_column_name="zero_shot_result")
+    run_experiment(data, zero_shot_prompt_result, 'datasets/experiment3/prompt_engineering_predictions_zeroshot.csv', result_column_name="zero_shot_result")
+    run_experiment(data, cot_prompt_result, 'datasets/experiment3/prompt_engineering_predictions_cot.csv', result_column_name="cot_result")
