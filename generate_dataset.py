@@ -1,10 +1,16 @@
-import openai 
+# imports for processing and utilities
 import os 
+import argparse 
+from tqdm import tqdm 
+from multiprocessing import Pool, cpu_count, current_process
+
+# imports to filter dataset
 import pandas as pd
 from jinja2 import Template
+
+# imports to generate stories
+import openai 
 from config import OPENAI_API_KEY
-from multiprocessing import Pool, cpu_count, current_process
-from tqdm import tqdm 
 
 # Set up OpenAI API key
 openai.api_key = OPENAI_API_KEY 
@@ -36,43 +42,47 @@ Generated Story:
 """
 
 def filter_and_save_dataset(input_path, output_path):
-  
-  # Load data
-  data = pd.read_csv(input_path)
-  
-  # Filter for 'imagined' stories
-  imagined_stories = data[data['memType'] == 'imagined']
-  
-  # Keep only relevant columns
-  kept_columns = ['AssignmentId', 'story', 'summary', 'timeSinceEvent']
-  imagined_stories = imagined_stories[kept_columns]
-  
-  # Save filtered data to new CSV
-  imagined_stories.to_csv(output_path, index=False)
+    '''This function filters the dataset to only include imagined stories 
+    and saves the filtered dataset to a new CSV file.'''
+    
+    # Load data
+    data = pd.read_csv(input_path)
+    
+    # Filter for 'imagined' stories
+    imagined_stories = data[data['memType'] == 'imagined']
+    
+    # Keep only relevant columns
+    kept_columns = ['AssignmentId', 'story', 'summary', 'timeSinceEvent']
+    imagined_stories = imagined_stories[kept_columns]
+    
+    # Save filtered data to new CSV
+    imagined_stories.to_csv(output_path, index=False)
 
-  print(f"Saved {imagined_stories.shape[0]} rows to {output_path}")
+    print(f"Saved {imagined_stories.shape[0]} rows to {output_path}")
 
-def generate_story(summary, time_since_event):
+def generate_story(summary, time_since_event, system_prompt_template=system_prompt_template, user_prompt_template=user_prompt_template):
+    '''This function generates a story based on a summary and time since event.'''
 
-  # Render prompt templates
-  system_prompt = Template(system_prompt_template).render()
-  user_prompt = Template(user_prompt_template).render(
-    summary=summary,
-    time_since_event=time_since_event
-  )
+    # Render prompt templates
+    system_prompt = Template(system_prompt_template).render()
+    user_prompt = Template(user_prompt_template).render(
+        summary=summary,
+        time_since_event=time_since_event
+    )
 
-  # Generate story
-  response = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", 
-    messages=[
-      {"role": "system", "content": system_prompt},
-      {"role": "user", "content": user_prompt},
-    ]
-  )
+    # Generate story
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo", 
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+    )
 
-  return response['choices'][0]['message']['content']
+    return response['choices'][0]['message']['content']
 
 def generate_stories_for_row(row):
+    '''This function generates a story for a single row in the dataset.'''
 
     # Retrieve details from the row
     assignment_id = row['AssignmentId']
@@ -88,6 +98,7 @@ def generate_stories_for_row(row):
     return assignment_id, generated_story
 
 def generate_all_stories(data):
+    '''This function generates stories for all rows in the dataset.'''
     num_cpus = cpu_count()
     print(f"Using {num_cpus} CPU cores for processing.")
     
@@ -124,10 +135,19 @@ def generate_all_stories(data):
     # Save the final results to a new dataframe and return it
     return pd.DataFrame(results, columns=['AssignmentId', 'generated_story'])
 
-if __name__ == "__main__":
-  
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Generate stories based on summaries")
+    parser.add_argument("--input_path", default="datasets/hcV3-stories.csv", help="Path to input CSV file")
+    parser.add_argument("--output_path", default="datasets/hcV3-imagined-stories-with-generated.csv", help="Path to output CSV file")
+    return parser.parse_args()
+
+def main(input_path, output_path):
+    # Filter the dataset and save imagined stories
+    imagined_stories_path = 'datasets/hcV3-imagined-stories.csv'
+    filter_and_save_dataset(input_path, imagined_stories_path)
+    
     # Load imagined stories
-    imagined_stories = pd.read_csv("datasets/hcV3-imagined-stories.csv")
+    imagined_stories = pd.read_csv(imagined_stories_path)
 
     # Generate stories for all rows in the dataframe
     stories_df = generate_all_stories(imagined_stories)
@@ -136,6 +156,9 @@ if __name__ == "__main__":
     merged_df = imagined_stories.merge(stories_df, on="AssignmentId")
 
     # Save the updated dataframe with the generated stories to a new CSV file
-    merged_df.to_csv("datasets/hcV3-imagined-stories-with-generated.csv", index=False)
+    merged_df.to_csv(output_path, index=False)
+    print(f"Saved {merged_df.shape[0]} rows to {output_path}")
 
-    print(f"Saved {merged_df.shape[0]} rows to datasets/hcV3-imagined-stories-with-generated.csv")
+if __name__ == "__main__":
+    args = parse_arguments()
+    main(args.input_path, args.output_path)

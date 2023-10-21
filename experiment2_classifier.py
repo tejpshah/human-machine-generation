@@ -1,12 +1,17 @@
 import pandas as pd
+import argparse
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 
 def load_data(filepath):
+    """Load data from the given CSV file."""
     return pd.read_csv(filepath)
 
 def preprocess_data(df):
+    """
+    Preprocess data by extracting embeddings and labels.
+    """
     human_embeddings = df['summary_embedding'].apply(eval).tolist()
     human_labels = [0] * len(human_embeddings)
 
@@ -23,11 +28,17 @@ def preprocess_data(df):
     return df_new
 
 def split_data(df):
+    """
+    Split data into training and test sets.
+    """
     X = pd.DataFrame(df['story_embedding'].tolist())
     y = df['type']
     return train_test_split(X, y, test_size=0.2, random_state=42)
 
 def train_and_evaluate(x_train, y_train, x_test, y_test):
+    """
+    Train and evaluate the models.
+    """
     models = {
         'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
     }
@@ -42,9 +53,17 @@ def train_and_evaluate(x_train, y_train, x_test, y_test):
 
     return results
 
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Train and evaluate a model on story embeddings.")
+    parser.add_argument("filepath", type=str, default='datasets/experiment2/experiment2-embeddings.csv',help="Path to the dataset containing embeddings.")
+    return parser.parse_args()
+
 def main():
-    filepath = 'datasets/experiment2/embeddings.csv'
-    df = load_data(filepath)
+    '''Main function.'''
+    args = parse_arguments()
+
+    df = load_data(args.filepath)
     df_new = preprocess_data(df)
     x_train, x_test, y_train, y_test = split_data(df_new)
     results = train_and_evaluate(x_train, y_train, x_test, y_test)

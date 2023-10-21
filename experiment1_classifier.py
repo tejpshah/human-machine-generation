@@ -1,4 +1,5 @@
 import json
+import argparse 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,11 +7,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, log_loss 
-
-# Read the consolidated dataframe
-data = pd.read_csv('datasets/experiment1/experiment1_classifier.csv')
-X = data.drop("type", axis=1)
-Y = data["type"]
 
 def parse_json_data(column):
     """
@@ -21,12 +17,6 @@ def parse_json_data(column):
 def consolidate_features(csv_path):
     """
     Consolidate human and AI features from a given CSV.
-    
-    Args:
-    - csv_path (str): Path to the CSV file.
-
-    Returns:
-    - DataFrame: Consolidated dataframe with human and AI features.
     """
     df = pd.read_csv(csv_path)
     
@@ -41,6 +31,7 @@ def consolidate_features(csv_path):
     return consolidated_df
 
 def format_tabular_data_for_classifier():
+    '''This function consolidates the features from the human and AI generated stories into a single dataframe.'''
     csv_path = 'datasets/experiment1/experiment1.csv'
     consolidated_df = consolidate_features(csv_path)
     
@@ -49,7 +40,7 @@ def format_tabular_data_for_classifier():
     
     print("Consolidation complete!")
 
-def preprocess_data():
+def preprocess_data(X, Y):
     """Preprocesses the data by splitting and scaling."""
     # Split the data into training and test sets (80-20)
     x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.20, random_state=42)
@@ -89,6 +80,7 @@ def test_logistic(model, x_test_scaled, y_test):
     return logreg_test_accuracy, logreg_test_logloss
 
 def plot_logistic_feature_importance(model):
+    """Plots the feature importance for a logistic regression model."""
     
     # Get feature coefficients from the logistic regression model
     feature_coeffs = model.coef_[0]
@@ -107,10 +99,14 @@ def plot_logistic_feature_importance(model):
     plt.savefig('datasets/experiment1/experiment1_logistic_feature_importance.png')
     plt.show()
 
-if __name__ == '__main__':
+def main(args):
+    # Read the consolidated dataframe from argparse
+    data = pd.read_csv(args.data_path)
+    X = data.drop("type", axis=1)
+    Y = data["type"]
 
     # preprocess the data for training and testing
-    x_train_scaled, x_test_scaled, y_train, y_test = preprocess_data()
+    x_train_scaled, x_test_scaled, y_train, y_test = preprocess_data(X,Y)
 
     # train and test the logistic regression model
     model, train_accuracy, train_logloss = train_logistic(x_train_scaled, y_train)
@@ -124,3 +120,9 @@ if __name__ == '__main__':
 
     # plot the feature importance
     plot_logistic_feature_importance(model)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Training a classifier for experiment 1')
+    parser.add_argument('--data_path', default='datasets/experiment1/experiment1-classifier-data.csv', help='Path to the consolidated data for experiment 1 (default: datasets/experiment1/experiment1-classifier-data.csv)')
+    args = parser.parse_args()
+    main(args)

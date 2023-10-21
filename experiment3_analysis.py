@@ -176,7 +176,87 @@ def run_experiment(data, prompt_func, output_file, checkpoint_path, result_colum
 
 ### Analysis - Compute Confidence Intervals ###
 
-def compute_confidence_interval(p, n, z=1.96):
+def generate_combined_plot(zeroshot_path, cot_path, self_consistency_path):
+    labels = ['Correct', 'Incorrect']
+    techniques = ['Zero-shot', 'CoT', 'Self-consistency']
+
+    # Load the data from provided CSV paths
+    zeroshot_df = pd.read_csv(zeroshot_path)
+    cot_df = pd.read_csv(cot_path)
+    self_consistency_df = pd.read_csv(self_consistency_path)
+    
+    # Compute confusion matrices for each technique
+    zeroshot_cm = confusion_matrix(zeroshot_df['label'], zeroshot_df['zero_shot_result'])
+    cot_cm = confusion_matrix(cot_df['label'], cot_df['cot_result'])
+    self_consistency_cm = confusion_matrix(self_consistency_df['label'], self_consistency_df['self_consistency_result'])
+
+    # Extracting counts from confusion matrices for plotting
+    ai_guess_zeroshot = [zeroshot_cm[1][1], zeroshot_cm[0][1]]  # TP, FP
+    human_guess_zeroshot = [zeroshot_cm[0][0], zeroshot_cm[1][0]]  # TN, FN
+    ai_guess_cot = [cot_cm[1][1], cot_cm[0][1]]  # TP, FP
+    human_guess_cot = [cot_cm[0][0], cot_cm[1][0]]  # TN, FN
+    ai_guess_self_consistency = [self_consistency_cm[1][1], self_consistency_cm[0][1]]  # TP, FP
+    human_guess_self_consistency = [self_consistency_cm[0][0], self_consistency_cm[1][0]]  # TN, FN
+
+    # Plotting in a single 2x3 grid
+    plt.figure(figsize=(15, 8))
+
+    # AI Guesses
+    for i, (ai_guess, technique) in enumerate(zip([ai_guess_zeroshot, ai_guess_cot, ai_guess_self_consistency], techniques), 1):
+        plt.subplot(2, 3, i)
+        plt.bar(labels, ai_guess, color=['g', 'r'])
+        plt.title(f'AI Guesses ({technique})')
+        plt.ylabel('Count')
+        plt.grid(False)
+
+    # Human Guesses
+    for i, (human_guess, technique) in enumerate(zip([human_guess_zeroshot, human_guess_cot, human_guess_self_consistency], techniques), 4):
+        plt.subplot(2, 3, i)
+        plt.bar(labels, human_guess, color=['g', 'r'])
+        plt.title(f'Human Guesses ({technique})')
+        plt.ylabel('Count')
+        plt.grid(False)
+
+    plt.tight_layout()
+    plt.savefig('datasets/experiment3/prompting_performance.png')
+    plt.show()
+
+def compute_accuracy(true_labels, predictions):
+    '''Compute the accuracy given true labels and predictions.'''
+    correct_predictions = (true_labels == predictions).sum()
+    total_predictions = len(true_labels)
+    return correct_predictions / total_predictions
+
+def compute_metrics(zeroshot_path, cot_path, self_consistency_path):
+    '''Compute the confusion matrices and accuracies for each technique.'''
+
+    # Load the data from provided CSV paths
+    zeroshot_df = pd.read_csv(zeroshot_path)
+    cot_df = pd.read_csv(cot_path)
+    self_consistency_df = pd.read_csv(self_consistency_path)
+
+    # Compute confusion matrices for each technique
+    zeroshot_cm = confusion_matrix(zeroshot_df['label'], zeroshot_df['zero_shot_result'])
+    cot_cm = confusion_matrix(cot_df['label'], cot_df['cot_result'])
+    self_consistency_cm = confusion_matrix(self_consistency_df['label'], self_consistency_df['self_consistency_result'])
+
+    # Compute accuracy for each technique
+    zeroshot_accuracy = compute_accuracy(zeroshot_df['label'], zeroshot_df['zero_shot_result'])
+    cot_accuracy = compute_accuracy(cot_df['label'], cot_df['cot_result'])
+    self_consistency_accuracy = compute_accuracy(self_consistency_df['label'], self_consistency_df['self_consistency_result'])
+
+    # Create a dataframe to structure the data for the LaTeX table
+    data = {
+        'Technique': ['Zero-shot', 'CoT', 'Self-consistency'],
+        'TN': [zeroshot_cm[0][0], cot_cm[0][0], self_consistency_cm[0][0]],
+        'FP': [zeroshot_cm[0][1], cot_cm[0][1], self_consistency_cm[0][1]],
+        'FN': [zeroshot_cm[1][0], cot_cm[1][0], self_consistency_cm[1][0]],
+        'TP': [zeroshot_cm[1][1], cot_cm[1][1], self_consistency_cm[1][1]],
+        'Accuracy (%)': [zeroshot_accuracy*100, cot_accuracy*100, self_consistency_accuracy*100]
+    }
+    return pd.DataFrame(data)
+
+def compute_confidence_interval(p, n=100, z=1.96):
     '''Compute the 95% confidence interval for a proportion.'''
     margin_of_error = z * np.sqrt(p * (1 - p) / n)
     lower_bound = p - margin_of_error
@@ -189,18 +269,19 @@ def parse_args():
     '''Parse command line arguments.'''
     parser = argparse.ArgumentParser(description="Run AI Experiments.")
     parser.add_argument('--generate', action='store_true', help='Generate data for experiments.')
-    parser.add_argument('--zeroshot', action='store_true', help='Run Zero-shot prompt experiment.')
+    parser.add_argument('--zeroshot', action='store_true', help='Run Zero-shot / standard prompt experiment.')
     parser.add_argument('--cot', action='store_true', help='Run COT prompt experiment.')
     parser.add_argument('--consistency', action='store_true', help='Run Self-consistency prompt experiment.')
     parser.add_argument('--data-file', default='datasets/hcV3-imagined-stories-with-generated.csv', help='Path to data file.')
-    parser.add_argument('--output-file', default='datasets/experiment3/prompt_engineering.csv', help='Path for output file.')
+    parser.add_argument('--output-file', default='datasets/experiment3/story-label-pairs.csv', help='Path for output file.')
     parser.add_argument('--checkpoint-zero-shot', default='datasets/experiment3/checkpoints/standard.json', help='Checkpoint path for zero-shot.')
     parser.add_argument('--checkpoint-cot', default='datasets/experiment3/checkpoints/cot.json', help='Checkpoint path for COT.')
     parser.add_argument('--checkpoint-consistency', default='datasets/experiment3/checkpoints/consistency.json', help='Checkpoint path for consistency.')
     parser.add_argument('--csv-zero-shot', default='datasets/experiment3/predictions/standard.csv', help='CSV path for zero-shot results.')
     parser.add_argument('--csv-cot', default='datasets/experiment3/predictions/cot.csv', help='CSV path for COT results.')
     parser.add_argument('--csv-consistency', default='datasets/experiment3/predictions/consistency.csv', help='CSV path for consistency results.')
-
+    parser.add_argument('--compute-metrics', action='store_true', help='Compute metrics and generate LaTeX table.')
+    parser.add_argument('--generate-plot', action='store_true', help='Generate combined plot for the techniques.')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -208,13 +289,11 @@ if __name__ == "__main__":
     openai.api_key = OPENAI_API_KEY 
 
     args = parse_args()
-    
-    data_path = args.data_file
 
     if args.generate:
         generate_data()
         
-    data = load_data(data_path)
+    data = load_data(args.output_file)
     
     if args.zeroshot:
         run_experiment(
@@ -243,3 +322,13 @@ if __name__ == "__main__":
             result_column_name="self_consistency_result"
         )
     
+    if args.compute_metrics:
+        metrics_df = compute_metrics(args.csv_zero_shot_metrics, args.csv_cot_metrics, args.csv_consistency_metrics)
+        metrics_df['Accuracy (%)'] = metrics_df['Accuracy (%)'] / 100
+        metrics_df['Lower Bound'], metrics_df['Upper Bound'] = zip(*metrics_df['Accuracy (%)'].apply(compute_confidence_interval))
+        metrics_df['Lower Bound'] = metrics_df['Lower Bound'] * 100
+        metrics_df['Upper Bound'] = metrics_df['Upper Bound'] * 100
+        print(metrics_df)
+
+    if args.generate_plot:
+        generate_combined_plot(args.csv_zero_shot_metrics, args.csv_cot_metrics, args.csv_consistency_metrics)
