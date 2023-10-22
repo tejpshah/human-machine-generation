@@ -1,0 +1,15 @@
+Feature,p-value,Significant
+char_freq,0.0,True
+word_freq,0.0,True
+sentence_freq,0.0,True
+unique_word_freq,0.0,True
+flesch_score,0.0,True
+avg_sentence_std_dev,4.1297155506837126e-10,True
+noun_freq,0.0,True
+verb_freq,0.0,True
+pronoun_freq,0.0,True
+adjective_freq,0.0,True
+adverb_freq,6.712418732253802e-152,True
+exclamation_freq,3.409009339694289e-05,True
+ellipsis_freq,1.8600079816119505e-10,True
+sentiment,1.5113901621698725e-75,True
