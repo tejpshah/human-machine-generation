@@ -218,7 +218,7 @@ def generate_combined_plot(zeroshot_path, cot_path, self_consistency_path):
         plt.grid(False)
 
     plt.tight_layout()
-    plt.savefig('datasets/experiment3/prompting_performance.png')
+    plt.savefig('datasets/experiment3/prompting-performance-few-shot.png')
     plt.show()
 
 def compute_accuracy(true_labels, predictions):
@@ -272,14 +272,14 @@ def parse_args():
     parser.add_argument('--zeroshot', action='store_true', help='Run Zero-shot / standard prompt experiment.')
     parser.add_argument('--cot', action='store_true', help='Run COT prompt experiment.')
     parser.add_argument('--consistency', action='store_true', help='Run Self-consistency prompt experiment.')
-    parser.add_argument('--data-file', default='datasets/hcV3-imagined-stories-with-generated.csv', help='Path to data file.')
-    parser.add_argument('--output-file', default='datasets/experiment3/story-label-pairs.csv', help='Path for output file.')
+    parser.add_argument('--data-file', default='datasets/hcV3-imagined-stories-with-generated-few-shot.csv', help='Path to data file.')
+    parser.add_argument('--output-file', default='datasets/experiment3/story-label-pairs-few-shot.csv', help='Path for output file.')
     parser.add_argument('--checkpoint-zero-shot', default='datasets/experiment3/checkpoints/standard.json', help='Checkpoint path for zero-shot.')
     parser.add_argument('--checkpoint-cot', default='datasets/experiment3/checkpoints/cot.json', help='Checkpoint path for COT.')
     parser.add_argument('--checkpoint-consistency', default='datasets/experiment3/checkpoints/consistency.json', help='Checkpoint path for consistency.')
-    parser.add_argument('--csv-zero-shot', default='datasets/experiment3/predictions/standard.csv', help='CSV path for zero-shot results.')
-    parser.add_argument('--csv-cot', default='datasets/experiment3/predictions/cot.csv', help='CSV path for COT results.')
-    parser.add_argument('--csv-consistency', default='datasets/experiment3/predictions/consistency.csv', help='CSV path for consistency results.')
+    parser.add_argument('--csv-zero-shot', default='datasets/experiment3/predictions/standard-few-shot.csv', help='CSV path for zero-shot results.')
+    parser.add_argument('--csv-cot', default='datasets/experiment3/predictions/cot-few-shot.csv', help='CSV path for COT results.')
+    parser.add_argument('--csv-consistency', default='datasets/experiment3/predictions/consistency-few-shot.csv', help='CSV path for consistency results.')
     parser.add_argument('--compute-metrics', action='store_true', help='Compute metrics and generate LaTeX table.')
     parser.add_argument('--generate-plot', action='store_true', help='Generate combined plot for the techniques.')
     return parser.parse_args()
@@ -323,7 +323,7 @@ if __name__ == "__main__":
         )
     
     if args.compute_metrics:
-        metrics_df = compute_metrics(args.csv_zero_shot_metrics, args.csv_cot_metrics, args.csv_consistency_metrics)
+        metrics_df = compute_metrics(args.csv_zero_shot, args.csv_cot, args.csv_consistency)
         metrics_df['Accuracy (%)'] = metrics_df['Accuracy (%)'] / 100
         metrics_df['Lower Bound'], metrics_df['Upper Bound'] = zip(*metrics_df['Accuracy (%)'].apply(compute_confidence_interval))
         metrics_df['Lower Bound'] = metrics_df['Lower Bound'] * 100
@@ -331,4 +331,4 @@ if __name__ == "__main__":
         print(metrics_df)
 
     if args.generate_plot:
-        generate_combined_plot(args.csv_zero_shot_metrics, args.csv_cot_metrics, args.csv_consistency_metrics)
+        generate_combined_plot(args.csv_zero_shot, args.csv_cot, args.csv_consistency)

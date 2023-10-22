@@ -76,11 +76,11 @@ class OpenAIEmbeddingsProcessor:
 def generate_value_plot(df, path, filename):
     '''Generate a value plot comparing the number of stories closer to the original story or the summary.'''
     plt.figure(figsize=(10, 6))
-    sns.countplot(data=df, x='closer_to_story', palette=COLORS)
+    sns.countplot(data=df, x='closer_to_story', palette=reversed(COLORS))
     plt.title('Count of Stories With Higher Cosine Similarity to Original Story')
     plt.ylabel('Count')
     plt.xlabel('')
-    plt.xticks(ticks=range(len(LABELS_UPDATED)), labels=reversed(LABELS_UPDATED))
+    plt.xticks(ticks=range(len(LABELS_UPDATED)), labels=(LABELS_UPDATED))
     plt.savefig(f"{path}/{filename}")
     plt.show()
 
@@ -106,15 +106,19 @@ def plot(df, plot_type, path, value_filename, boxplot_filename):
 
 def main(args):
     df_processed = None
+
     if not args.preprocessing:
         # Load data
+        print("Loading data...")
         df = pd.read_csv(args.input_path)
 
         # Process data
+        print("Processing data...")
         processor = OpenAIEmbeddingsProcessor()
         df_processed = processor.process_dataframe(df)
 
         # Retain only the necessary columns
+        print("Retaining necessary columns...")
         relevant_cols = [
             'story_embedding', 'summary_embedding', 'generated_story_embedding',
             'story_summary_similarity', 'story_generated_story_similarity', 'closer_to_story'
@@ -126,6 +130,7 @@ def main(args):
         df_processed.to_csv(args.output_path, index=False)
     else:
         df_processed = pd.read_csv(args.output_path)
+    
         
     # Generate plots using the provided paths and filenames
     print(df_processed['closer_to_story'].value_counts())
@@ -134,11 +139,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process embeddings and plot data")
-    parser.add_argument("--input_path", type=str, default="datasets/hcV3-imagined-stories-with-generated.csv")
-    parser.add_argument("--output_path", type=str, default="datasets/experiment2/experiment2-embeddings.csv")
+    parser.add_argument("--input_path", type=str, default="datasets/hcV3-imagined-stories-with-generated-few-shot.csv")
+    parser.add_argument("--output_path", type=str, default="datasets/experiment2/experiment2-embeddings-few-shot.csv")
     parser.add_argument("--plot_save_path", type=str, default='datasets/experiment2/results', help="Path where plots will be saved.")
-    parser.add_argument("--value_plot_filename", type=str, default='experiment2-value-plot.png', help="Filename for the value plot.")
-    parser.add_argument("--boxplot_filename", type=str, default='experiment2-similarity-scores.png', help="Filename for the boxplot.")
+    parser.add_argument("--value_plot_filename", type=str, default='experiment2-value-plot-few-shot.png', help="Filename for the value plot.")
+    parser.add_argument("--boxplot_filename", type=str, default='experiment2-similarity-scores-few-shot.png', help="Filename for the boxplot.")
     parser.add_argument("--preprocessing", type=bool, default=False, help="Flag to indicate if data is already preprocessed.")
     args = parser.parse_args()
     

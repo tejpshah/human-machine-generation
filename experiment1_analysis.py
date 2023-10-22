@@ -122,23 +122,31 @@ def main(args):
     '''Extract and plot linguistic features from human and AI-generated texts.'''
     data = None 
     if not args.preprocessed:
+        print("Extracting features from the input file...")
         data = pd.read_csv(args.input_file)
+        print("Extracting features from human-generated stories...")
         data['human_features'] = data['story'].apply(extract_features)
+        print("Extracting features from AI-generated stories...")
         data['ai_features'] = data['generated_story'].apply(extract_features)
+        print("Saving the extracted features to a CSV file...")
         data.to_csv(args.output_file, index=False)
     else:
+        print("Reading the input file...")
         data = pd.read_csv(args.output_file)
+        print("Converting the string representation of dictionaries to actual dictionaries...")
         data['human_features'] = data['human_features'].apply(string_to_dict)
+        print("Converting the string representation of dictionaries to actual dictionaries...")
         data['ai_features'] = data['ai_features'].apply(string_to_dict)
+    print("Plotting the features...")
     plot_features(data)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract and plot linguistic features from human and AI-generated texts.")
-    parser.add_argument("--input_file", type=str, default="datasets/hcV3-imagined-stories-with-generated.csv", help="Path to input CSV file.")
-    parser.add_argument("--output_plot", type=str, default="datasets/experiment1/results/experiment1-feature-plot.png", help="Path to save the output plot.")
-    parser.add_argument("--output_file", type=str, default="datasets/experiment1/experiment1-data.csv", help="Path to save the output CSV with features.")
-    parser.add_argument("--output_statistics", type=str, default="datasets/experiment1/results/experiment1-statistics.csv", help="Path to save the output CSV with statistics.")
-    parser.add_argument("--significance", type=str, default="datasets/experiment1/results/experiment1-significance.csv", help="Runs t-tests on human vs AI generated features.")
+    parser.add_argument("--input_file", type=str, default="datasets/hcV3-imagined-stories-with-generated-few-shot.csv", help="Path to input CSV file.")
+    parser.add_argument("--output_plot", type=str, default="datasets/experiment1/results/experiment1-feature-plot-few-shot.png", help="Path to save the output plot.")
+    parser.add_argument("--output_file", type=str, default="datasets/experiment1/experiment1-data-few-shot.csv", help="Path to save the output CSV with features.")
+    parser.add_argument("--output_statistics", type=str, default="datasets/experiment1/results/experiment1-statistics-few-shot.csv", help="Path to save the output CSV with statistics.")
+    parser.add_argument("--significance", type=str, default="datasets/experiment1/results/experiment1-significance-few-shot.csv", help="Runs t-tests on human vs AI generated features.")
     parser.add_argument("--preprocessed", action="store_true", help="Use this flag if the input file already contains features and there's no need to extract them again.")
 
     args = parser.parse_args()

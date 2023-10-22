@@ -32,11 +32,12 @@ def consolidate_features(csv_path):
 
 def format_tabular_data_for_classifier():
     '''This function consolidates the features from the human and AI generated stories into a single dataframe.'''
-    csv_path = 'datasets/experiment1/experiment1.csv'
+    
+    csv_path = 'datasets/experiment1/experiment1-data-few-shot.csv'
     consolidated_df = consolidate_features(csv_path)
     
     # (Optional) Save the consolidated dataframe to a new CSV
-    consolidated_df.to_csv('datasets/experiment1/experiment1_classifier.csv', index=False)
+    consolidated_df.to_csv('datasets/experiment1/experiment1-classifier-few-shot.csv', index=False)
     
     print("Consolidation complete!")
 
@@ -79,7 +80,7 @@ def test_logistic(model, x_test_scaled, y_test):
 
     return logreg_test_accuracy, logreg_test_logloss
 
-def plot_logistic_feature_importance(model):
+def plot_logistic_feature_importance(model, X):
     """Plots the feature importance for a logistic regression model."""
     
     # Get feature coefficients from the logistic regression model
@@ -96,7 +97,7 @@ def plot_logistic_feature_importance(model):
     plt.ylabel('Feature')
     plt.title('Feature Importance in Logistic Regression')
     plt.grid(axis='x', linestyle='--', alpha=0.6)
-    plt.savefig('datasets/experiment1/experiment1_logistic_feature_importance.png')
+    plt.savefig('datasets/experiment1/results/experiment1-logistic-feature-importance-few-shot.png')
     plt.show()
 
 def main(args):
@@ -119,10 +120,12 @@ def main(args):
     print(f'Test log loss: {test_logloss:.4f}')
 
     # plot the feature importance
-    plot_logistic_feature_importance(model)
+    plot_logistic_feature_importance(model, X)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training a classifier for experiment 1')
-    parser.add_argument('--data_path', default='datasets/experiment1/experiment1-classifier-data.csv', help='Path to the consolidated data for experiment 1 (default: datasets/experiment1/experiment1-classifier-data.csv)')
+    parser.add_argument('--data_path', default='datasets/experiment1/experiment1-classifier-few-shot.csv', help='Path to the consolidated data for experiment 1 (default: datasets/experiment1/experiment1-classifier-data.csv)')
     args = parser.parse_args()
+
+    format_tabular_data_for_classifier()
     main(args)

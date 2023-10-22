@@ -35,6 +35,29 @@ Now, write the journal entry below.:
 - Do not include the specific date or time of the event in the story.
 """
 
+system_prompt_template_few_shot = """
+Given a short prompt summary, write an imagined journal entry about an event. Writing instructions:
+- The story must correspond to the summary. 
+- Pretend the event happened to you, but do not write about something that actually happened to you.
+- Write using first person perspective.  
+- Use the timeline of when the event happened (e.g., "3 weeks ago", "6 months ago").
+
+Now, write the journal entry below.:
+- **Reminder** Please make sure to write a story that corresponds to the summary written above. 
+- Don't write a story about something that actually happened to you.
+- Story must be 15-25 sentences and 600-3000 characters including spaces.  
+- Do not start off with any salutations (e.g., "Dear Diary") or dates (e.g., 3/1/2021").
+- Do not include the specific date or time of the event in the story.
+
+Human Example 1: It was a beautiful Saturday morning. My family members and i decided to go to the beach. We got to the beach and got carried away by the fun. We forgot to apply the sunscreen and that caused a damage to our skin. We all got sunburned and look black. This unique burn on our skin made us look alike. After leaving the beach and got home. We decided to have a family reunion and this made us all have a burn to identify ourselves. We really love what the sunburn did to our skin. It made us love ourselves more. We took a family picture and placed it in the living room. Each member also had a copy of the pictures. We planned another visit to the beach. We applied sunscreen this time. We are ever happy after.
+
+Human Example 2: Our end of summer family reunion came around and we decided to have it hosted at a restaurant.  It was beautiful, as we had it in a tent overlooking the lake.  My brother had maybe one too many drinks that day.  A waiter came over and asked if he would like a water.  My brother looked at him and told him that he knows when it's okay to quit drinking.  I know he didn't mean anything by it, but the waiter was horrified.  He thought he insulted my brother, when he was simply offering water to everyone on a tray.  My brother didn't mean to be mean.  Several people had already come up to him offering water, so he simply thought it was  hint to quit drinking.  It kind of set the tone for me for the rest of the day though.  I mean, it's been three weeks and I still get embarrassed thinking about that one moment.  One that the waiter has probably forgotten all about.  I won't go back to that restaurant though for a bit.  I wouldn't risk getting the same waiter just in case he would remember.  I don't want anyone to spit in my food if he still holds a grudge.
+
+Human Example 3: I returned to school after not being there for a while. I studied real hard at the college. I met some new friends. We always went partying on the weekend. I always got blasted and puke a lot of the times. It was worth it. I studied to become an engineer. It was tough. The material was very challenging. I had a hard time getting the instructions right for the problems. I studied hard and I graduated. I had a fun time at the graduation. There were many people in the crowd. I waved to all of them. I threw my cap in the air and got my diploma. I hope to get a good job in the coming months.
+
+Mimic the style of human stories (as shown in the three examples above) as much as possible - sentence length, difficulty of sentences, word choice, frequency of different parts of speeches, and more. You may decide to write short stories, use colloquial phrases, and have improper grammar. You may also choose to have short stories, as long as it of similar length to the examples above and meet the required guidelines.
+"""
+
 user_prompt_template = """
 Summary (from {{ time_since_event }} days ago): {{ summary }}
 
@@ -64,7 +87,7 @@ def generate_story(summary, time_since_event, system_prompt_template=system_prom
     '''This function generates a story based on a summary and time since event.'''
 
     # Render prompt templates
-    system_prompt = Template(system_prompt_template).render()
+    system_prompt = Template(system_prompt_template_few_shot).render()
     user_prompt = Template(user_prompt_template).render(
         summary=summary,
         time_since_event=time_since_event
@@ -124,7 +147,7 @@ def generate_all_stories(data):
             # Update the progress bar
             pbar.update(1)
             
-            # Save results to CSV every 250 rows processed
+            # Save results to CSV every 20 rows processed
             if len(results) % 20 == 0:
                 temp_df = pd.DataFrame(results, columns=['AssignmentId', 'generated_story'])
                 temp_df.to_csv(temp_file_path, index=False)
@@ -138,7 +161,7 @@ def generate_all_stories(data):
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Generate stories based on summaries")
     parser.add_argument("--input_path", default="datasets/hcV3-stories.csv", help="Path to input CSV file")
-    parser.add_argument("--output_path", default="datasets/hcV3-imagined-stories-with-generated.csv", help="Path to output CSV file")
+    parser.add_argument("--output_path", default="datasets/hcV3-imagined-stories-with-generated-few-shot.csv", help="Path to output CSV file")
     return parser.parse_args()
 
 def main(input_path, output_path):
@@ -159,6 +182,21 @@ def main(input_path, output_path):
     merged_df.to_csv(output_path, index=False)
     print(f"Saved {merged_df.shape[0]} rows to {output_path}")
 
+def few_shot_main(output_path):
+    
+    # Load imagined stories
+    imagined_stories = pd.read_csv('datasets/hcV3-imagined-stories.csv')
+
+    # Generate stories for all rows in the dataframe
+    stories_df = generate_all_stories(imagined_stories)
+
+    # Merge the original dataframe with the generated stories on AssignmentId
+    merged_df = imagined_stories.merge(stories_df, on="AssignmentId")
+
+    # Save the updated dataframe with the generated stories to a new CSV file
+    merged_df.to_csv(output_path, index=False)
+    print(f"Saved {merged_df.shape[0]} rows to {output_path}")
+
 if __name__ == "__main__":
     args = parse_arguments()
-    main(args.input_path, args.output_path)
+    few_shot_main(args.output_path)

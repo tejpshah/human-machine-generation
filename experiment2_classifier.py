@@ -56,7 +56,7 @@ def train_and_evaluate(x_train, y_train, x_test, y_test):
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Train and evaluate a model on story embeddings.")
-    parser.add_argument("filepath", type=str, default='datasets/experiment2/experiment2-embeddings.csv',help="Path to the dataset containing embeddings.")
+    parser.add_argument("--filepath", type=str, default='datasets/experiment2/experiment2-embeddings-few-shot.csv',help="Path to the dataset containing embeddings.")
     return parser.parse_args()
 
 def main():
