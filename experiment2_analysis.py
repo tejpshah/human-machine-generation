@@ -86,6 +86,13 @@ def generate_value_plot(df, path, filename):
 
 def generate_boxplot(df, path, filename):
     '''Generate a boxplot showcasing the distribution of similarity scores.'''
+
+    # Print out box plot summary statistics
+    print("Summary Statistics for story_generated_story_similarity:")
+    print(df['story_generated_story_similarity'].describe())
+    print("\nSummary Statistics for story_summary_similarity:")
+    print(df['story_summary_similarity'].describe())
+
     data_to_plot = [df['story_generated_story_similarity'], df['story_summary_similarity']]
     plt.figure(figsize=(10, 6))
     sns.boxplot(data=data_to_plot, orient="v", palette=COLORS, width=0.6)
@@ -134,13 +141,13 @@ def main(args):
         
     # Generate plots using the provided paths and filenames
     print(df_processed['closer_to_story'].value_counts())
-    plot(df_processed, 'value_plot', args.plot_save_path, args.value_plot_filename, args.boxplot_filename)
     plot(df_processed, 'boxplot', args.plot_save_path, args.value_plot_filename, args.boxplot_filename)
+    plot(df_processed, 'value_plot', args.plot_save_path, args.value_plot_filename, args.boxplot_filename)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process embeddings and plot data")
     parser.add_argument("--input_path", type=str, default="datasets/hcV3-imagined-stories-with-generated-few-shot.csv")
-    parser.add_argument("--output_path", type=str, default="datasets/experiment2/experiment2-embeddings-few-shot.csv")
+    parser.add_argument("--output_path", type=str, default="datasets/experiment2/experiment2-embeddings.csv")
     parser.add_argument("--plot_save_path", type=str, default='datasets/experiment2/results', help="Path where plots will be saved.")
     parser.add_argument("--value_plot_filename", type=str, default='experiment2-value-plot-few-shot.png', help="Filename for the value plot.")
     parser.add_argument("--boxplot_filename", type=str, default='experiment2-similarity-scores-few-shot.png', help="Filename for the boxplot.")
