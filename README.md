@@ -36,7 +36,7 @@ The repository contains code to reproduce the following experiments:
 
 3. **Prompt Engineering**: Evaluates different prompting strategies (e.g. chain of thought, self-consistency) for enabling GPT-3.5 to accurately discern human vs AI generated stories.
 
-The analysis is performed for both zero-shot and few-shot scenarios. See the [report](submission/project5-tej-shah-gpt-vs-human-imagined-stories-final.pdf) for details on the experimental setup, results, and conclusions. You can see the slide deck [here](submission/project5-tej-shah-gpt-vs-human-imagined-stories-slides.pdf).
+The analysis is performed for both zero-shot and few-shot scenarios. See the [report](submission/project5-tej-shah-gpt-vs-human-imagined-stories-final.pdf) for details on the experimental setup, results, and conclusions. You can see the slide deck [here](submission/project5-tej-shah-gpt-vs-human-imagined-stories-final-slides.pdf).
 
 ## Usage
 
